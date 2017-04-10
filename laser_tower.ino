@@ -23,7 +23,7 @@ void setup()
   current_time = 0;
   count = 0;
 
- 
+  digitalWrite(LIDAR_enable_pin, HIGH);
   Serial.begin(115200); // Initialize serial connection to display distance readings
   LIDAR.begin(0, true); // Set configuration to default and I2C to 400 kHz
   LIDAR.write(0x02, 0x0d); // Maximum acquisition count of 0x0d. (default is 0x80)
@@ -32,19 +32,34 @@ void setup()
 }
 
 
+
+
 void loop()
 {
     //frequency test-------
     //int lidar_dist;
     //frequency_and_accuracy_test(true, lidar_dist);
     //----------------------
+    
+    
     if(Serial.available() > 0)
     {
-
         incoming_mode = Serial.read();
+        Clear_UART_buffer();
+    }
 
-        
-      
+    if(incoming_mode == 'T')
+    {
+        Serial.write(distanceFast(false));
+    }
+    else if(incoming_mode == 'L')
+    {
+        digitalWrite(ledPin, HIGH);
+    }
+    else if(incoming_mode == 'M')
+    {
+        //Single_LIDAR_measurement();
+        digitalWrite(ledPin, LOW);
     }
 
 
@@ -52,14 +67,15 @@ void loop()
 
 
 
-
+//makes a single measurement
 void Single_LIDAR_measurement()
 {
 
+    Serial.write(LIDAR.distance());
   
 }
 
-
+//clears the UART input buffer from the 
 void Clear_UART_buffer()
 {
 
@@ -70,7 +86,7 @@ void Clear_UART_buffer()
   
 }
 
-
+//call this function to check frequency and accuracy.
 void frequency_and_accuracy_test(bool biascorrection, int lidar_dist)
 {   
 
@@ -81,6 +97,7 @@ void frequency_and_accuracy_test(bool biascorrection, int lidar_dist)
   
 }
 
+//Check frequency
 void frequency_test()
 {
   if(count%1000 == 0)
@@ -100,7 +117,7 @@ void frequency_test()
 int lower_limit = 0;
 int higher_limit = 0;
 
-
+//check highest ad lowest measurement out of 5000.
 void show_difference( int LIDAR_dist)
 {   
       
@@ -143,7 +160,7 @@ void show_difference( int LIDAR_dist)
 
 
 
-
+//Returns LIDAR values very fast.
 int distanceFast(bool biasCorrection)
 {
   byte isBusy = 1;
