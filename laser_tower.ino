@@ -5,6 +5,10 @@
 
 LIDARLite LIDAR;
 const int ledPin = LED_BUILTIN;
+
+const int LIDAR_enable_pin = 3;
+char incoming_mode = 'T';
+
 bool shinelamp;
 
 
@@ -15,9 +19,11 @@ int dist;
 
 void setup()
 {
-
+  pinMode(LIDAR_enable_pin,OUTPUT);
   current_time = 0;
   count = 0;
+
+ 
   Serial.begin(115200); // Initialize serial connection to display distance readings
   LIDAR.begin(0, true); // Set configuration to default and I2C to 400 kHz
   LIDAR.write(0x02, 0x0d); // Maximum acquisition count of 0x0d. (default is 0x80)
@@ -26,19 +32,54 @@ void setup()
 }
 
 
-
 void loop()
 {
-   frequency_test();   
+    //frequency test-------
+    //int lidar_dist;
+    //frequency_and_accuracy_test(true, lidar_dist);
+    //----------------------
+    if(Serial.available() > 0)
+    {
 
-   dist = distanceFast(true);
+        incoming_mode = Serial.read();
 
-   //Serial.write(dist);
+        
+      
+    }
+
+
 }
 
 
 
 
+void Single_LIDAR_measurement()
+{
+
+  
+}
+
+
+void Clear_UART_buffer()
+{
+
+    while(Serial.available() > 0 )
+    {
+        Serial.read();
+    }
+  
+}
+
+
+void frequency_and_accuracy_test(bool biascorrection, int lidar_dist)
+{   
+
+    lidar_dist = LIDAR.distance(biascorrection);
+    frequency_test();
+    show_difference(lidar_dist);
+    ++count;
+  
+}
 
 void frequency_test()
 {
@@ -46,15 +87,57 @@ void frequency_test()
   {
 
       current_time = millis();
-
+      
       
       Serial.println("frequency:");
-      Serial.println(1/(current_time-last_time));
+      Serial.println(1000000/(current_time - last_time));
       last_time = current_time;
   }
-  
-   ++count;
+
 }
+
+
+int lower_limit = 0;
+int higher_limit = 0;
+
+
+void show_difference( int LIDAR_dist)
+{   
+      
+      if((count % 5000) == 0)
+      {
+
+          Serial.println("lowest measurement:");
+          Serial.println(lower_limit);
+          Serial.println("highest measurement:");
+          Serial.println(higher_limit);          
+
+          
+          lower_limit = LIDAR_dist;
+          higher_limit =  LIDAR_dist;
+
+
+          
+      }
+      
+      if(LIDAR_dist < lower_limit)
+      {
+          lower_limit = LIDAR_dist;
+      }
+             
+      if(LIDAR_dist > higher_limit)
+      {
+           higher_limit = LIDAR_dist;
+      }
+
+   
+            
+}
+
+   
+
+    
+
 
 
 
