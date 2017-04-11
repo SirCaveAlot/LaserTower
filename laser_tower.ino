@@ -15,7 +15,7 @@ bool shinelamp;
 int last_time;
 int current_time;
 int count;
-int dist;
+uint16_t dist;
 
 void setup()
 {
@@ -50,7 +50,14 @@ void loop()
 
     if(incoming_mode == 'T')
     {
-        Serial.write(distanceFast(false));
+        dist = 0x0142;//distanceFast(false);
+        dist = (dist<<1);
+        Serial.write(0xFF);
+        Serial.write(dist);
+        Serial.write(dist>>8);
+        
+        delay(200);
+       
     }
     else if(incoming_mode == 'L')
     {
@@ -90,24 +97,30 @@ void Clear_UART_buffer()
 void frequency_and_accuracy_test(bool biascorrection, int lidar_dist)
 {   
 
-    lidar_dist = LIDAR.distance(biascorrection);
-    frequency_test();
+    lidar_dist = distanceFast(false);//LIDAR.distance(true);//
+    frequency_test(lidar_dist);
     show_difference(lidar_dist);
     ++count;
   
 }
+long total_dist = 0;
 
 //Check frequency
-void frequency_test()
+void frequency_test(int dist)
 {
+  total_dist += dist;
   if(count%1000 == 0)
   {
-
+      
       current_time = millis();
       
       
       Serial.println("frequency:");
       Serial.println(1000000/(current_time - last_time));
+      Serial.println("average: ");
+      Serial.println(total_dist / 1000);
+
+      total_dist = 0;
       last_time = current_time;
   }
 
