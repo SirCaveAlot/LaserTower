@@ -7,7 +7,7 @@ LIDARLite LIDAR;
 const int ledPin = LED_BUILTIN;
 
 const int LIDAR_enable_pin = 3;
-char incoming_mode = 'T';
+char incoming_mode = 'L';
 
 bool shinelamp;
 
@@ -26,9 +26,9 @@ void setup()
   digitalWrite(LIDAR_enable_pin, HIGH);
   Serial.begin(115200); // Initialize serial connection to display distance readings
   LIDAR.begin(0, true); // Set configuration to default and I2C to 400 kHz
-  LIDAR.write(0x02, 0x0d); // Maximum acquisition count of 0x0d. (default is 0x80)
+  /*LIDAR.write(0x02, 0x0d); // Maximum acquisition count of 0x0d. (default is 0x80)
   LIDAR.write(0x04, 0b00000100); // Use non-default reference acquisition count
-  LIDAR.write(0x12, 0x03); // Reference acquisition count of 3 (default is 5)
+  LIDAR.write(0x12, 0x03); // Reference acquisition count of 3 (default is 5)*/
 }
 
 
@@ -44,29 +44,34 @@ void loop()
     
     if(Serial.available() > 0)
     {
+        digitalWrite(ledPin, LOW);
         incoming_mode = Serial.read();
         Clear_UART_buffer();
     }
 
-    if(incoming_mode == 'T')
+    //LIDAR is rotating
+    if(incoming_mode == 'L')
     {
-        dist = 0x0142;//distanceFast(false);
+        dist = distanceFast(false);//distanceFast(false);
         dist = (dist<<1);
         Serial.write(0xFF);
         Serial.write(dist);
         Serial.write(dist>>8);
         
-        delay(200);
+       // delay(200);
        
     }
-    else if(incoming_mode == 'L')
+    //do nothing
+    else if(incoming_mode == 'D')
     {
         digitalWrite(ledPin, HIGH);
     }
-    else if(incoming_mode == 'M')
+    //single reading
+    else if(incoming_mode == 'S')
     {
-        //Single_LIDAR_measurement();
-        digitalWrite(ledPin, LOW);
+        Single_LIDAR_measurement();
+        
+        incoming_mode = 'D';
     }
 
 
@@ -77,8 +82,11 @@ void loop()
 //makes a single measurement
 void Single_LIDAR_measurement()
 {
+        dist = LIDAR.distance(true);
+        Serial.write(dist);
+        Serial.write(dist>>8);
+    
 
-    Serial.write(LIDAR.distance());
   
 }
 
