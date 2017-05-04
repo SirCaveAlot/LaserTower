@@ -7,7 +7,7 @@ LIDARLite LIDAR;
 const int ledPin = LED_BUILTIN;
 
 const int LIDAR_enable_pin = 3;
-char incoming_mode = 'L';
+char incoming_mode = 'D';
 
 bool shinelamp;
 
@@ -20,15 +20,17 @@ uint16_t dist;
 void setup()
 {
   pinMode(LIDAR_enable_pin,OUTPUT);
+  pinMode(10,OUTPUT);
+  
   current_time = 0;
   count = 0;
 
   digitalWrite(LIDAR_enable_pin, HIGH);
   Serial.begin(115200); // Initialize serial connection to display distance readings
   LIDAR.begin(0, true); // Set configuration to default and I2C to 400 kHz
-  /*LIDAR.write(0x02, 0x0d); // Maximum acquisition count of 0x0d. (default is 0x80)
+  LIDAR.write(0x02, 0x0d); // Maximum acquisition count of 0x0d. (default is 0x80)
   LIDAR.write(0x04, 0b00000100); // Use non-default reference acquisition count
-  LIDAR.write(0x12, 0x03); // Reference acquisition count of 3 (default is 5)*/
+  LIDAR.write(0x12, 0x03); // Reference acquisition count of 3 (default is 5)
 }
 
 
@@ -47,45 +49,51 @@ void loop()
         digitalWrite(ledPin, LOW);
         incoming_mode = Serial.read();
         Clear_UART_buffer();
+        
+        
     }
 
     //LIDAR is rotating
     if(incoming_mode == 'L')
     {
-        dist = distanceFast(false);//distanceFast(false);
-        dist = (dist<<1);
-        Serial.write(0xFF);
-        Serial.write(dist);
-        Serial.write(dist>>8);
-        
-       // delay(200);
-       
+       Speed_LIDAR_measurement();
+      
+  
     }
-    //do nothing
+    //normal mode
     else if(incoming_mode == 'D')
-    {
-        digitalWrite(ledPin, HIGH);
-    }
-    //single reading
-    else if(incoming_mode == 'S')
     {
         Single_LIDAR_measurement();
         
-        incoming_mode = 'D';
     }
+    
 
 
 }
 
+void Speed_LIDAR_measurement()
+{
+        dist = distanceFast(true);//distanceFast(false);
+        dist = (dist<<1);
+        Serial.write(0xFF);
+        //delayMicroseconds(10);
+        Serial.write(dist);
+        //delayMicroseconds(10);
+        Serial.write(dist>>8);
+        //delayMicroseconds(10);
+  
+}
 
 
 //makes a single measurement
 void Single_LIDAR_measurement()
 {
-        dist = LIDAR.distance(true);
+        dist = LIDAR.distance(false);
+        dist = (dist<<1);
+        Serial.write(0xFF);
         Serial.write(dist);
         Serial.write(dist>>8);
-    
+        
 
   
 }
@@ -96,7 +104,7 @@ void Clear_UART_buffer()
 
     while(Serial.available() > 0 )
     {
-        Serial.read();
+        char getData = Serial.read();
     }
   
 }
