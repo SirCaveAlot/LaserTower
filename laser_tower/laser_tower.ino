@@ -1,15 +1,26 @@
 
+
 #include <Wire.h>
 #include <LIDARLite.h>
-
+#include <avr/io.h>
+#include <avr/interrupt.h>
 
 LIDARLite LIDAR;
 const int ledPin = LED_BUILTIN;
+const byte interruptPin = 2;
 
 const int LIDAR_enable_pin = 3;
 char incoming_mode = 'D';
 
 bool shinelamp;
+
+
+//angles
+volatile int tot_overflow;
+volatile int last_full_rotate_time;
+volatile int magnet_count;
+
+
 
 
 int last_time;
@@ -27,10 +38,15 @@ void setup()
 
   digitalWrite(LIDAR_enable_pin, HIGH);
   Serial.begin(115200); // Initialize serial connection to display distance readings
-  LIDAR.begin(0, true); // Set configuration to default and I2C to 400 kHz
-  LIDAR.write(0x02, 0x0d); // Maximum acquisition count of 0x0d. (default is 0x80)
-  LIDAR.write(0x04, 0b00000100); // Use non-default reference acquisition count
-  LIDAR.write(0x12, 0x03); // Reference acquisition count of 3 (default is 5)
+  LIDAR.begin(1, true); // Set configuration to default and I2C to 400 kHz
+ // LIDAR.write(0x02, 0x0d); // Maximum acquisition count of 0x0d. (default is 0x80)
+ // LIDAR.write(0x04, 0b00000100); // Use non-default reference acquisition count
+ // LIDAR.write(0x12, 0x03); // Reference acquisition count of 3 (default is 5)
+ 
+  attachInterrupt(digitalPinToInterrupt(interruptPin), magnetDetection , FALLING );
+  Setup_timer2();
+  interrupts();
+  
 }
 
 
@@ -49,7 +65,17 @@ void loop()
         digitalWrite(ledPin, LOW);
         incoming_mode = Serial.read();
         Clear_UART_buffer();
-        
+         if(incoming_mode == 'L')
+        {
+            
+            magnet_count = 0;
+            enableOrDisableTimerInt(true);
+            while(magnet_count < 4);
+            //digitalWrite(ledPin, HIGH);  
+        }else
+        {
+            enableOrDisableTimerInt(false);
+        }
         
     }
 
@@ -71,15 +97,66 @@ void loop()
 
 }
 
+
+
+void magnetDetection()
+{
+   last_full_rotate_time = tot_overflow; 
+  
+   ++magnet_count;
+  
+   tot_overflow = 0;
+   
+}
+
+void Setup_timer2()
+{
+  //prescaler on /8
+  TCCR2B = (1<<CS21) ;
+  TCNT2 = 0;
+  //enable overflow interrupts
+  //TIMSK1 |= (1<<TOIE1);
+}
+
+void enableOrDisableTimerInt(bool activate)
+{
+  if(activate)
+  {
+      TIMSK2 |= (1<<TOIE2);
+  }
+  else
+  {
+      TIMSK2 &= ~(1<<TOIE2);  
+  }
+  
+}
+//TCNT1 stores Timer/Counter values
+
+//TIFR TOV1 is high if T/C1 has overflown
+
+//----------------------------------------------------------------------
+//interrupts
+ISR(TIMER2_OVF_vect)
+{
+    ++tot_overflow;
+}
+
+
+
+uint16_t angle;
 void Speed_LIDAR_measurement()
 {
-        dist = distanceFast(true);//distanceFast(false);
+        dist = LIDAR.distance(true);//distanceFast(true);//distanceFast(false);
+        angle  = ((float)tot_overflow / last_full_rotate_time) * 1000;
         dist = (dist<<1);
         Serial.write(0xFF);
         //delayMicroseconds(10);
         Serial.write(dist);
         //delayMicroseconds(10);
         Serial.write(dist>>8);
+                
+        Serial.write(angle);
+        Serial.write(angle>>8);
         //delayMicroseconds(10);
   
 }
