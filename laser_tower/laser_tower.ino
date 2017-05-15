@@ -17,9 +17,10 @@ bool shinelamp;
 
 //angles
 volatile int tot_overflow;
-volatile int last_full_rotate_time;
+volatile uint16_t last_full_rotate_time;
 volatile int magnet_count;
-
+volatile int rotation_limit;
+volatile int diff_last_least;
 
 
 
@@ -46,6 +47,7 @@ void setup()
   attachInterrupt(digitalPinToInterrupt(interruptPin), magnetDetection , FALLING );
   Setup_timer2();
   interrupts();
+  enableOrDisableTimerInt(true);
   
 }
 
@@ -65,16 +67,20 @@ void loop()
         digitalWrite(ledPin, LOW);
         incoming_mode = Serial.read();
         Clear_UART_buffer();
-         if(incoming_mode == 'L')
+        if(incoming_mode == 'L')
         {
             
-            magnet_count = 0;
-            enableOrDisableTimerInt(true);
-            while(magnet_count < 4);
-            //digitalWrite(ledPin, HIGH);  
-        }else
-        {
-            enableOrDisableTimerInt(false);
+             magnet_count = 0;
+             digitalWrite(ledPin, HIGH);       
+
+             //check if tower has rotated 4 times or time difference between laps
+             //is less than /100 of last lap 
+             while(magnet_count < 4 && 
+                  ((diff_last_least > rotation_limit) ||
+                  (last_full_rotate_time == 0)));
+             
+             digitalWrite(ledPin, LOW);  
+         
         }
         
     }
@@ -101,10 +107,14 @@ void loop()
 
 void magnetDetection()
 {
+   uint16_t prev_full_rotate_time = last_full_rotate_time;
    last_full_rotate_time = tot_overflow; 
-  
+   
+   diff_last_least = abs(prev_full_rotate_time - last_full_rotate_time);
+   
    ++magnet_count;
-  
+   
+   rotation_limit = last_full_rotate_time / 100;
    tot_overflow = 0;
    
 }
