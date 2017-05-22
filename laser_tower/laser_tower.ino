@@ -5,6 +5,7 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
+
 LIDARLite LIDAR;
 const int ledPin = LED_BUILTIN;
 const byte interruptPin = 2;
@@ -17,7 +18,7 @@ bool shinelamp;
 
 //angles
 volatile int tot_overflow;
-volatile uint16_t last_full_rotate_time;
+volatile int last_full_rotate_time;
 volatile int magnet_count;
 volatile int rotation_limit;
 volatile int diff_last_least;
@@ -47,7 +48,7 @@ void setup()
   attachInterrupt(digitalPinToInterrupt(interruptPin), magnetDetection , FALLING );
   Setup_timer2();
   interrupts();
-  enableOrDisableTimerInt(true);
+  last_full_rotate_time = 0;
   
 }
 
@@ -69,18 +70,24 @@ void loop()
         Clear_UART_buffer();
         if(incoming_mode == 'L')
         {
-            
+             enableOrDisableTimerInt(true);
+             //TCNT2 = 0;
              magnet_count = 0;
+            // tot_overflow = 0;
+             
              digitalWrite(ledPin, HIGH);       
 
-             //check if tower has rotated 4 times or time difference between laps
-             //is less than /100 of last lap 
-             while(magnet_count < 4 && 
-                  ((diff_last_least > rotation_limit) ||
-                  (last_full_rotate_time == 0)));
+             //check if tower has rotated 2 times or time difference between laps
+             while(magnet_count < 2); 
+          
              
              digitalWrite(ledPin, LOW);  
-         
+
+             
+        }
+        else
+        {
+            enableOrDisableTimerInt(false);
         }
         
     }
@@ -107,14 +114,10 @@ void loop()
 
 void magnetDetection()
 {
-   uint16_t prev_full_rotate_time = last_full_rotate_time;
+
    last_full_rotate_time = tot_overflow; 
-   
-   diff_last_least = abs(prev_full_rotate_time - last_full_rotate_time);
-   
+
    ++magnet_count;
-   
-   rotation_limit = last_full_rotate_time / 100;
    tot_overflow = 0;
    
 }
@@ -157,18 +160,21 @@ uint16_t angle;
 void Speed_LIDAR_measurement()
 {
         dist = LIDAR.distance(true);//distanceFast(true);//distanceFast(false);
-        angle  = ((float)tot_overflow / last_full_rotate_time) * 1000;
-        dist = (dist<<1);
-        Serial.write(0xFF);
+        if(dist != 1)
+        {
+           angle  = ((float)tot_overflow / last_full_rotate_time) * 1000;
+           dist = (dist<<1);
+           Serial.write(0xFF);
         //delayMicroseconds(10);
-        Serial.write(dist);
+           Serial.write(dist>>8);
+           Serial.write(dist);
         //delayMicroseconds(10);
-        Serial.write(dist>>8);
-                
-        Serial.write(angle);
-        Serial.write(angle>>8);
+           
+           Serial.write(angle>>8);     
+           Serial.write(angle);
+           
         //delayMicroseconds(10);
-  
+        }
 }
 
 
@@ -178,8 +184,9 @@ void Single_LIDAR_measurement()
         dist = LIDAR.distance(false);
         dist = (dist<<1);
         Serial.write(0xFF);
-        Serial.write(dist);
         Serial.write(dist>>8);
+        Serial.write(dist);
+        
         
 
   
